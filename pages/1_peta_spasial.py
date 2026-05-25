@@ -4,7 +4,8 @@ import folium
 import pandas as pd
 import streamlit as st
 from branca.colormap import linear
-from streamlit.components.v1 import html
+
+from data_loader import load_rainfall_data
 
 st.set_page_config(page_title="Peta Spasial", page_icon="🗺️", layout="wide")
 st.title("Peta Spasial Curah Hujan")
@@ -13,47 +14,7 @@ DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "Li
 
 @st.cache_data
 def load_data(path: str) -> pd.DataFrame:
-    column_names = [
-        "station_id",
-        "station_name",
-        "pulau",
-        "provinsi",
-        "kabkota",
-        "longitude",
-        "latitude",
-        "elevasi",
-        "curah_hujan",
-    ]
-    rows = []
-
-    with open(path, encoding="utf-8") as file:
-        for line_number, line in enumerate(file, start=1):
-            parts = [part.strip() for part in line.rstrip("\n").split(",")]
-            if len(parts) < len(column_names):
-                st.warning(f"Baris {line_number} dilewati karena jumlah kolom kurang dari {len(column_names)}.")
-                continue
-
-            pulau_index = len(parts) - 7
-            if pulau_index < 2:
-                st.warning(f"Baris {line_number} dilewati karena format kolom tidak valid.")
-                continue
-
-            rows.append([
-                parts[0],
-                ", ".join(parts[1:pulau_index]),
-                *parts[pulau_index:pulau_index + 7],
-            ])
-
-    df = pd.DataFrame(rows, columns=column_names, dtype=str)
-
-    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
-    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
-    df["elevasi"] = pd.to_numeric(df["elevasi"], errors="coerce")
-    df["curah_hujan"] = pd.to_numeric(df["curah_hujan"], errors="coerce")
-
-    df = df.dropna(subset=["longitude", "latitude", "curah_hujan"])
-
-    return df
+    return load_rainfall_data(path)
 
 df = pd.DataFrame()
 
@@ -117,4 +78,4 @@ for _, row in filtered.iterrows():
     ).add_to(map_object)
 
 map_html = map_object.get_root().render()
-html(map_html, height=700)
+st.iframe(map_html, height=700)

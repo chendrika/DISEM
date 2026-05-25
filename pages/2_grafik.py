@@ -3,6 +3,8 @@
 import pandas as pd
 import streamlit as st
 
+from data_loader import load_rainfall_data
+
 st.set_page_config(page_title="Grafik Curah Hujan", page_icon="📈", layout="wide")
 st.title("Grafik Curah Hujan")
 
@@ -10,26 +12,9 @@ DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "Li
 
 @st.cache_data
 def load_data(path: str) -> pd.DataFrame:
-    column_names = [
-        "station_id",
-        "station_name",
-        "pulau",
-        "provinsi",
-        "kabkota",
-        "longitude",
-        "latitude",
-        "elevasi",
-        "curah_hujan",
-    ]
-    df = pd.read_csv(path, header=None, names=column_names, dtype=str)
+    return load_rainfall_data(path)
 
-    df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
-    df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
-    df["elevasi"] = pd.to_numeric(df["elevasi"], errors="coerce")
-    df["curah_hujan"] = pd.to_numeric(df["curah_hujan"], errors="coerce")
-
-    df = df.dropna(subset=["longitude", "latitude", "curah_hujan"])
-    return df
+df = pd.DataFrame()
 
 try:
     df = load_data(DATA_PATH)
@@ -69,5 +54,13 @@ st.bar_chart(data=top20.set_index("station_name")["curah_hujan"])
 
 st.subheader("Distribusi Curah Hujan")
 bins = pd.cut(filtered["curah_hujan"], bins=10)
-histogram = filtered["curah_hujan"].groupby(bins).count().rename("count")
-st.bar_chart(histogram)
+histogram = (
+    filtered["curah_hujan"]
+    .groupby(bins, observed=False)
+    .count()
+    .rename("jumlah_stasiun")
+    .reset_index()
+)
+histogram["curah_hujan"] = histogram["curah_hujan"].astype(str)
+histogram = histogram.rename(columns={"curah_hujan": "rentang_curah_hujan"})
+st.bar_chart(histogram, x="rentang_curah_hujan", y="jumlah_stasiun")
