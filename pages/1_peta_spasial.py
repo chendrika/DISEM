@@ -24,7 +24,27 @@ def load_data(path: str) -> pd.DataFrame:
         "elevasi",
         "curah_hujan",
     ]
-    df = pd.read_csv(path, header=None, names=column_names, dtype=str)
+    rows = []
+
+    with open(path, encoding="utf-8") as file:
+        for line_number, line in enumerate(file, start=1):
+            parts = [part.strip() for part in line.rstrip("\n").split(",")]
+            if len(parts) < len(column_names):
+                st.warning(f"Baris {line_number} dilewati karena jumlah kolom kurang dari {len(column_names)}.")
+                continue
+
+            pulau_index = len(parts) - 7
+            if pulau_index < 2:
+                st.warning(f"Baris {line_number} dilewati karena format kolom tidak valid.")
+                continue
+
+            rows.append([
+                parts[0],
+                ", ".join(parts[1:pulau_index]),
+                *parts[pulau_index:pulau_index + 7],
+            ])
+
+    df = pd.DataFrame(rows, columns=column_names, dtype=str)
 
     df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
     df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
@@ -34,6 +54,8 @@ def load_data(path: str) -> pd.DataFrame:
     df = df.dropna(subset=["longitude", "latitude", "curah_hujan"])
 
     return df
+
+df = pd.DataFrame()
 
 try:
     df = load_data(DATA_PATH)
@@ -68,7 +90,7 @@ center_lat = float(filtered["latitude"].mean())
 center_lon = float(filtered["longitude"].mean())
 map_object = folium.Map(location=[center_lat, center_lon], zoom_start=5, tiles="OpenStreetMap")
 
-colormap = linear.YlOrRd_09.scale(df["curah_hujan"].min(), df["curah_hujan"].max())
+colormap = getattr(linear, "YlOrRd_09").scale(df["curah_hujan"].min(), df["curah_hujan"].max())
 colormap.caption = "Curah Hujan (mm)"
 colormap.add_to(map_object)
 
